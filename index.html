@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>數學冒險島：24 點大冒險</title>
+  <style>
+    /* =========================================
+       1. 基本頁面設定
+       ========================================= */
+    html { width: 100%; min-height: 100%; }
+    body {
+      background-color: #2c3e50; color: #ecf0f1;
+      font-family: '微軟正黑體', 'PingFang TC', sans-serif;
+      display: block; 
+      margin: 0; padding: 15px 5px 25px; 
+      min-height: 100%; 
+      overflow-y: auto; overflow-x: hidden;
+      box-sizing: border-box;
+    }
+    .adventure-map {
+      width: 100%; max-width: 480px; background: #34495e;
+      border: 4px solid #f1c40f; border-radius: 15px; padding: 20px 15px;
+      text-align: center; box-shadow: 0 10px 0 #1a252f;
+      margin: 0 auto 20px auto; 
+      box-sizing: border-box;
+    }
+
+    /* =========================================
+       2. 狀態列與戰鬥區域
+       ========================================= */
+    header {
+      display: flex; justify-content: space-around; align-items: center;
+      font-size: 1rem; margin-bottom: 15px; background: rgba(0, 0, 0, 0.3);
+      padding: 12px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .stat { font-weight: bold; display: flex; align-items: center; white-space: nowrap; }
+    .battle-container {
+      display: flex; flex-direction: row; justify-content: center;
+      align-items: center; gap: 10px; margin: 20px 0; width: 100%;
+    }
+    .side-timer-box {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      background: rgba(0, 0, 0, 0.2); padding: 10px 5px;
+      border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    #timer-label { font-size: 0.75rem; color: #bdc3c7; margin-bottom: 5px; font-weight: bold; }
+    #timer {
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 1.8rem; font-weight: bold; min-width: 3.5rem; text-align: center;
+      font-variant-numeric: tabular-nums; transition: color 0.3s ease, opacity 0.3s ease;
+    }
+    .timer-paused { color: #95a5a6 !important; opacity: 0.5; }
+    .monster-area { flex: 1.5; height: 100px; display: flex; justify-content: center; align-items: center; }
+    .monster-sprite { font-size: 60px; animation: bounce 2s infinite; line-height: 1; }
+    .side-placeholder { flex: 1; visibility: hidden; }
+
+    /* =========================================
+       3. 數字卡片與虛擬鍵盤
+       ========================================= */
+    .card-container { display: flex; justify-content: center; gap: 10px; margin: 15px 0; }
+    .number-card {
+      background: #ecf0f1; color: #2c3e50; width: 55px; height: 80px;
+      line-height: 80px; font-size: 2rem; font-weight: bold; border-radius: 10px;
+      border-bottom: 5px solid #bdc3c7; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+    input[type="text"] {
+      width: 85%; max-width: 320px; margin: 0 auto 15px auto; padding: 14px;
+      border-radius: 10px; border: 3px solid #7f8c8d; font-size: 1.3rem;
+      text-align: center; background-color: #ecf0f1; color: #2c3e50;
+      display: block; outline: none; box-sizing: border-box;
+    }
+    #player-name-input {
+      border-color: #f1c40f; background-color: #2c3e50; color: white; margin-bottom: 15px; width: 100%;
+    }
+    #player-name-input::placeholder { color: #bdc3c7; }
+    
+    .keyboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 15px auto; width: 100%; }
+    .keyboard button { height: 58px; font-size: 1.6rem; }
+    button, .key, .btn-modal-next {
+      font-family: inherit; font-weight: bold; border: none; border-radius: 12px;
+      cursor: pointer; transition: all 0.1s ease; display: inline-flex;
+      align-items: center; justify-content: center; box-shadow: 0 5px 0 rgba(0, 0, 0, 0.3);
+      position: relative; top: 0;
+    }
+    button:active, .key:active { top: 3px; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3) !important; }
+    .key { background: #ecf0f1; color: #2c3e50; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; }
+    .key-op { background: #2980b9; color: white; font-size: 1.15em; line-height: 1; }
+    .key-del { background: #95a5a6; color: white; }
+    .button-group { display: flex; justify-content: center; gap: 12px; }
+    .button-group button { height: 70px; font-size: 1.6rem; flex: 1; max-width: 180px; letter-spacing: 2px; }
+    .btn-attack { background: #e74c3c; color: white; }
+    .btn-no-solution { background: #9b59b6; color: white; }
+    .btn-mode {
+      display: block; width: 100%; text-align: left;
+      padding: 18px 20px; margin: 0 0 14px 0;
+      border: none; border-radius: 15px; color: white; cursor: pointer;
+      transition: transform 0.2s ease, filter 0.2s ease !important;
+    }
+    .btn-mode:hover { filter: brightness(1.1); transform: translateY(-2px); }
+    .btn-mode:active { transform: translateY(3px) !important; }
+    .btn-mode h2 { margin: 0; font-size: 1.45rem; line-height: 1.25; }
+    .btn-mode p { margin: 6px 0 0 0; opacity: 0.85; font-size: 0.95rem; line-height: 1.35; }
+    .btn-mode.survival { background: #c0392b; }
+    .btn-mode.practice { background: #2980b9; }
+    .btn-mode.tutorial { background: #16a085; }
+    .leaderboard-btn { background: #8e44ad; text-align: center; font-size: 1.2rem; padding: 16px; margin-bottom: 0; }
+
+    /* =========================================
+       4. 彈出視窗與特效
+       ========================================= */
+    .modal {
+      display: none; position: fixed; z-index: 1000; left: 0; top: 0;
+      width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px);
+    }
+    .modal-content {
+      background-color: #34495e; margin: 12vh auto; padding: 25px;
+      border: 4px solid #f1c40f; width: 85%; max-width: 360px;
+      border-radius: 15px; text-align: center;
+    }
+    .solutions-list {
+      text-align: left; background: rgba(0, 0, 0, 0.4); padding: 12px;
+      border-radius: 8px; margin: 15px 0; font-family: monospace;
+      font-size: 1.1rem; color: #f1c40f;
+    }
+    .btn-modal-next { background: #27ae60; color: white; height: 60px; width: 100%; font-size: 1.3rem; }
+    .message { min-height: 1.2em; margin-top: 10px; font-weight: bold; }
+
+    .rainbow-text {
+      background-image: linear-gradient(to left, #ff9a9e, #fecfef, #a1c4fd, #c2e9fb, #d4fc79, #96e6a1, #ffecd2);
+      -webkit-background-clip: text; color: transparent;
+      animation: rainbow-animation 3s linear infinite;
+      font-size: 1.6rem; font-weight: bold; padding: 10px;
+      text-shadow: 0px 2px 10px rgba(255,255,255,0.2);
+    }
+    @keyframes rainbow-animation { to { background-position: 400vw; } }
+    @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    .shake { animation: shake-animation 0.5s ease-in-out; }
+    @keyframes shake-animation {
+      0%, 100% { transform: translate(0, 0); }
+      10%, 30%, 50%, 70%, 90% { transform: translate(-5px, 0); }
+      20%, 40%, 60%, 80% { transform: translate(5px, 0); }
+    }
+    .flash { animation: flash-bg 0.4s ease; }
+    @keyframes flash-bg { 50% { background-color: #c0392b; } }
+
+    .leaderboard-item {
+      display: flex; justify-content: space-between; align-items: center; padding: 8px 0;
+      border-bottom: 1px dashed rgba(255,255,255,0.2); font-size: 1rem;
+    }
+    .leaderboard-item:last-child { border-bottom: none; }
+    .leaderboard-name { flex: 2; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .leaderboard-stats { flex: 3; display: flex; justify-content: flex-end; gap: 10px; font-weight: bold; }
+    .rank-1 { color: #f1c40f; font-weight: bold; }
+    .rank-2 { color: #bdc3c7; font-weight: bold; }
+    .rank-3 { color: #cd7f32; font-weight: bold; }
+
+    /* =========================================
+       📱 手機版專屬壓縮
+       ========================================= */
+    @media (max-width: 480px) {
+      body { padding: 5px 5px 18px; }
+      .adventure-map { padding: 10px 10px 15px 10px; border-width: 3px; margin-bottom: 10px; }
+      h1 { font-size: 1.35rem !important; margin-bottom: 5px !important; margin-top: 5px !important; }
+      p { margin-bottom: 10px !important; font-size: 0.8rem !important; }
+      header { flex-wrap: wrap; gap: 8px; justify-content: center; font-size: 0.95rem; }
+      .stat { white-space: normal; }
+      .battle-container { gap: 8px; margin: 12px 0; }
+      .side-timer-box { flex: 0 0 78px; padding: 8px 4px; }
+      .monster-area { flex: 1; min-width: 90px; height: 84px; }
+      .side-placeholder { display: none; }
+      .monster-sprite { font-size: 48px; }
+      .card-container { gap: 6px; flex-wrap: wrap; }
+      .number-card { width: 48px; height: 66px; line-height: 66px; font-size: 1.65rem; }
+      input[type="text"] { width: 100%; padding: 11px; font-size: 1rem; }
+      .keyboard { gap: 7px; }
+      .keyboard button { height: 52px; font-size: 1.4rem; }
+      
+      #player-name-input { padding: 10px; margin-bottom: 12px; font-size: 0.95rem; width: 100%; }
+      .btn-mode { padding: 14px 16px !important; margin-bottom: 11px !important; border-radius: 12px !important; }
+      .btn-mode h2 { font-size: 1.25rem !important; }
+      .btn-mode p { margin-top: 5px !important; font-size: 0.85rem !important; }
+      .leaderboard-btn { padding: 14px !important; margin-bottom: 0 !important; font-size: 1.05rem !important; }
+      .button-group { gap: 8px; }
+      .button-group button { font-size: 1.05rem; height: 56px; letter-spacing: 0; min-width: 0; }
+      .modal-content { margin: 8vh auto; width: calc(100% - 34px); padding: 18px; }
+    }
+
+    /* =========================================
+       💻 平板／桌機放大
+       ========================================= */
+    @media (min-width: 600px) {
+      .adventure-map { max-width: 600px; padding: 28px 24px; }
+      .btn-mode { padding: 22px 26px; margin-bottom: 18px; }
+      .btn-mode h2 { font-size: 1.7rem; }
+      .btn-mode p { font-size: 1.1rem; }
+      .leaderboard-btn { font-size: 1.35rem; padding: 20px; margin-bottom: 0; }
+      header { font-size: 1.15rem; padding: 14px; }
+      .monster-sprite { font-size: 72px; }
+      .monster-area { height: 120px; }
+      #timer { font-size: 2.1rem; }
+      .card-container { gap: 14px; margin: 20px 0; }
+      .number-card { width: 68px; height: 96px; line-height: 96px; font-size: 2.4rem; }
+      input[type="text"] { max-width: 400px; padding: 16px; font-size: 1.5rem; }
+      .keyboard { gap: 12px; }
+      .keyboard button { height: 68px; font-size: 1.9rem; }
+      .button-group button { height: 82px; font-size: 1.8rem; max-width: 220px; }
+      .modal-content { max-width: 460px; padding: 30px; }
+      .solutions-list { font-size: 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="start-menu" class="adventure-map">
+    <h1 style="color: #f1c40f; margin-bottom: 10px; text-align: center;">⚔️ 24 點大冒險</h1>
+    
+    <button class="btn-mode survival" onclick="selectMode('survival')">
+      <h2>🔥 冒險模式</h2>
+      <p>限時挑戰、HP 3、登上英雄榜</p>
+    </button>
+    
+    <button class="btn-mode practice" onclick="selectMode('practice')">
+      <h2>📖 練習模式</h2>
+      <p>不限時、不扣 HP、可看提示</p>
+    </button>
+
+    <button class="btn-mode tutorial" onclick="selectMode('tutorial')">
+      <h2>🔰 新手教學</h2>
+      <p>四道題認識規則，不計時、不扣 HP</p>
+    </button>
+
+    <button class="btn-mode leaderboard-btn" onclick="showLeaderboard()">
+      🏆 英雄榜
+    </button>
+  </div>
+
+  <div id="name-modal" class="modal">
+    <div class="modal-content">
+      <h2 style="color: #f1c40f;">⚔️ 勇者登錄</h2>
+      <input type="text" id="player-name-input" placeholder="勇者大名" maxlength="12">
+      <p id="name-warning" style="color: #e74c3c; font-size: 0.9rem; display: none; margin-top: -5px; margin-bottom: 15px;">⚠️ 請先留下大名</p>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn-modal-next" style="background: #7f8c8d; flex: 1; height: 50px;" onclick="closeNameModal()">返回</button>
+        <button class="btn-modal-next" style="background: #e74c3c; flex: 1.5; height: 50px;" onclick="startSurvivalGame()">開始冒險</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="game-container" class="adventure-map" style="display: none; position: relative;">
+    <button id="btn-home" onclick="goHome()" style="position: absolute; top: -10px; left: 10px; padding: 5px 12px; background: #7f8c8d; color: white; border-radius: 8px; border: none; cursor: pointer; font-size: 0.8rem; z-index: 10;">🏠 回選單</button>
+    
+    <header>
+      <div class="stat" id="hp-stat">❤️ HP: <span id="hp">3</span></div>
+      <div class="stat" id="score-label">🪙 分數: <span id="score">0</span></div>
+      <div class="stat" id="level-stat">🚩 關卡: <span id="level">1</span></div>
+    </header>
+    
+    <div class="battle-container">
+      <div class="side-timer-box">
+        <div id="timer-label">⏳ 時間</div>
+        <div id="timer">75</div>
+      </div>
+      <div class="monster-area" id="monster-box">
+        <div id="monster-icon" class="monster-sprite">👾</div>
+      </div>
+      <div class="side-placeholder"></div>
+    </div>
+    
+    <div id="number-display" class="card-container"></div>
+    
+    <div class="input-section">
+      <input type="text" id="user-input" placeholder="用下方按鍵列出算式" readonly style="margin-bottom: 15px;">
+      <div class="keyboard" id="virtual-keyboard">
+        <button class="key key-op" onclick="pressKey('(')">(</button>
+        <button class="key key-op" onclick="pressKey(')')">)</button>
+        <button class="key key-op" onclick="pressKey('+')">+</button>
+        <button class="key key-op" onclick="pressKey('-')">-</button>
+        <button class="key key-op" onclick="pressKey('*')">×</button>
+        <button class="key key-op" onclick="pressKey('/')">÷</button>
+        <button class="key key-del" onclick="pressKey('DEL')">←</button>
+        <button class="key key-del" onclick="pressKey('AC')">AC</button>
+        <div id="number-keys-container" style="display: contents;"></div>
+      </div>
+      <div class="button-group">
+        <button class="btn-attack" onclick="checkAnswer()">發動攻擊</button>
+        <button class="btn-no-solution" onclick="checkNoSolution()">此題無解</button>
+      </div>
+      <div id="practice-controls" class="button-group" style="display: none; margin-top: 12px; gap: 10px;">
+        <button class="btn-hint" onclick="showHint()" style="background: #f39c12; color: white; flex: 1; height: 50px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer;">💡 提示</button>
+        <button class="btn-skip" onclick="newGame()" style="background: #7f8c8d; color: white; flex: 1; height: 50px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer;">⏭️ 換一題</button>
+      </div>
+    </div>
+    
+    <p id="feedback" class="message"></p>
+    <p id="mode-tip" style="font-size: 0.8rem; color: #bdc3c7; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
+      提示：答對增加秒數。勇者，在時間耗盡前擊敗更多敵人吧！
+    </p>
+  </div>
+
+  <div id="solution-modal" class="modal">
+    <div class="modal-content">
+      <h2 id="modal-title">戰鬥結果</h2>
+      <div id="modal-msg" style="margin: 15px 0; font-size: 1.1rem; line-height: 1.4;"></div>
+      <div id="solution-section">
+        <p style="font-size: 0.9rem; color: #f1c40f; margin-bottom: 5px;">📜 參考解法</p>
+        <div id="all-solutions-list" class="solutions-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal-next" onclick="newGame()">下一題</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="game-over-modal" class="modal">
+    <div class="modal-content">
+      <h2 id="game-over-title">💀 冒險結束</h2>
+      <div id="game-over-msg" style="margin: 15px 0; font-size: 1.2rem; line-height: 1.5; color: #ecf0f1;"></div>
+      <div id="new-record-effect" style="display: none; margin: 15px 0;">
+        <div class="rainbow-text">🎉 刷新英雄榜紀錄 🎉</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal-next" style="background: #3498db;" onclick="closeGameOverAndHome()">🏠 回選單</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="leaderboard-modal" class="modal">
+    <div class="modal-content">
+      <h2 style="color: #f1c40f;">🏆 英雄榜</h2>
+      <div style="display: flex; justify-content: space-between; color: #bdc3c7; font-size: 0.85rem; padding: 0 15px 5px 15px;">
+        <span>勇者</span>
+        <span>關卡 / 得分</span>
+      </div>
+      <div id="leaderboard-list" style="margin: 5px 0 15px 0; text-align: left; background: rgba(0,0,0,0.4); padding: 15px; border-radius: 8px; min-height: 150px;">
+        讀取中
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal-next" style="background: #e74c3c;" onclick="closeLeaderboard()">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================
+    // ⚠️ 已經幫你保留原本的 Google Apps Script 網址！
+    // =========================================
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyiNSro9bQ5AEXdsSxbprH-0ZDzILgwgsW-I6B0ZuukF3feO6eQtFFoOCh3QsKnU6UA/exec';
+
+    document.addEventListener('touchstart', function(event) { if (event.touches.length > 1) event.preventDefault(); }, { passive: false });
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', function(event) {
+      const now = (new Date()).getTime();
+      if (now - lastTouchEnd <= 300) event.preventDefault();
+      lastTouchEnd = now;
+    }, false);
+    document.addEventListener('keydown', function(event) {
+      if ((event.ctrlKey || event.metaKey) && (event.key === '+' || event.key === '-' || event.key === '=' || event.key === '0')) event.preventDefault();
+    });
+    document.addEventListener('wheel', function(event) { if (event.ctrlKey || event.metaKey) event.preventDefault(); }, { passive: false });
+
+    let gameMode = 'survival'; 
+    let currentPlayerName = "無名勇者"; 
+    let currentNums = [];
+    let hp = 3;
+    let level = 1;
+    let score = 0;
+    let timeLeft = 75;
+    let timerInterval;
+    let isPaused = false;
+    let wrongCount = 0; 
+    const MAX_TIME = 120;
+    const monsters = ['👾', '👹', '🐲', '🌵', '👻', '🐙', '🧟', '🐺', '🐝', '👽', '🧛'];
+    const mentors = ['🧙‍♂️', '🤖', '🎓', '🦉', '💡'];
+
+    // ===== 新手教學：四道固定題目 =====
+    let tutorialStep = 0;
+    const TUTORIAL = [
+      { nums: [6, 6, 6, 6],
+        tip: '① 四個數字每個各用一次，湊出 24。先試試把它們全部加起來。' },
+      { nums: [1, 2, 3, 4],
+        tip: '② 除了加減，也可以用乘（×）和除（÷）。這題用乘法很快。' },
+      { nums: [1, 2, 3, 5],
+        tip: '③ 這題一定要用括號。試試把數字兩兩相加，再把兩個結果相乘。' },
+      { nums: [1, 1, 1, 1],
+        tip: '④ 有些題目真的湊不出 24。這時候按「此題無解」才是正確答案。' }
+    ];
+
+    function updateTutorialProgress() {
+      const el = document.getElementById('score');
+      if (el) el.innerText = Math.min(tutorialStep + 1, TUTORIAL.length) + ' / ' + TUTORIAL.length;
+    }
+
+    // 💡 點擊模式選擇時的新邏輯
+    function selectMode(mode) {
+      gameMode = mode;
+      
+      if (mode === 'survival') {
+        // 如果是生存模式，跳出名稱輸入視窗，暫不進入遊戲
+        document.getElementById('name-modal').style.display = 'block';
+        document.getElementById('player-name-input').value = '';
+        document.getElementById('name-warning').style.display = 'none';
+        document.getElementById('player-name-input').focus();
+      } else {
+        // 如果是練習模式，不需記錄分數，直接進入遊戲
+        currentPlayerName = "勇者";
+        enterGameScreen();
+      }
+    }
+
+    // 關閉名稱輸入視窗
+    function closeNameModal() {
+      document.getElementById('name-modal').style.display = 'none';
+    }
+
+    // 💡 驗證輸入並開始生存模式遊戲
+    function startSurvivalGame() {
+      let inputEl = document.getElementById('player-name-input');
+      let inputName = inputEl.value.trim();
+      
+      // 強制防呆：如果沒輸入，顯示警告並加上震動特效
+      if (inputName === "") {
+        document.getElementById('name-warning').style.display = 'block';
+        inputEl.classList.add('shake');
+        setTimeout(() => inputEl.classList.remove('shake'), 500);
+        return; 
+      }
+      
+      // 驗證成功，存入變數並進入遊戲
+      currentPlayerName = inputName;
+      document.getElementById('name-modal').style.display = 'none';
+      enterGameScreen();
+    }
+
+    // 將原本切換畫面的邏輯獨立出來
+    function enterGameScreen() {
+      level = 1; score = 0; hp = 3; wrongCount = 0; isPaused = false;
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+      
+      document.getElementById('start-menu').style.display = 'none';
+      document.getElementById('game-container').style.display = 'block';
+      document.getElementById('level').innerText = level;
+      document.getElementById('hp').innerText = hp;
+      document.getElementById('score').innerText = score;
+      
+      if (gameMode === 'survival') {
+        timeLeft = 75;
+        document.getElementById('hp-stat').style.display = 'block';
+        document.getElementById('level-stat').style.display = 'block';
+        document.getElementById('score-label').innerHTML = `🪙 分數: <span id="score">${score}</span>`;
+        document.getElementById('practice-controls').style.display = 'none';
+        document.getElementById('mode-tip').innerText = "答對加時間，撐越久關卡越高";
+      } else if (gameMode === 'tutorial') {
+        tutorialStep = 0;
+        timeLeft = 0;
+        document.getElementById('hp-stat').style.display = 'none';
+        document.getElementById('level-stat').style.display = 'none';
+        document.getElementById('score-label').innerHTML = `🔰 教學: <span id="score">1 / 4</span>`;
+        document.getElementById('practice-controls').style.display = 'none';
+      } else {
+        timeLeft = 0;
+        document.getElementById('hp-stat').style.display = 'none';
+        document.getElementById('level-stat').style.display = 'block';
+        document.getElementById('score-label').innerHTML = `✅ 已完成: <span id="score">${score}</span>`;
+        document.getElementById('practice-controls').style.display = 'flex';
+        document.getElementById('mode-tip').innerText = "不限時，卡住可以看提示";
+      }
+      newGame();
+    }
+
+    function goHome() {
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+      document.getElementById('game-container').style.display = 'none';
+      document.getElementById('start-menu').style.display = 'block';
+    }
+
+    function pressKey(val) {
+      const input = document.getElementById('user-input');
+      if (input.disabled) return;
+      if (val === 'AC') input.value = '';
+      else if (val === 'DEL') input.value = input.value.slice(0, -1);
+      else if (input.value.length < 25) input.value += val;
+    }
+
+    function newGame() {
+      isPaused = false; wrongCount = 0; 
+      document.getElementById('timer').classList.remove('timer-paused');
+      document.getElementById('solution-modal').style.display = 'none';
+      document.getElementById('user-input').disabled = false;
+      document.getElementById('user-input').value = '';
+      document.getElementById('feedback').innerText = '';
+      
+      if (gameMode === 'tutorial') {
+        const t = TUTORIAL[tutorialStep];
+        currentNums = t.nums.slice();
+        document.getElementById('mode-tip').innerText = t.tip;
+        document.getElementById('monster-icon').innerText = '🔰';
+        updateTutorialProgress();
+      } else {
+        if (!timerInterval) startTimer();
+        if (gameMode === 'practice') timeLeft = 0;
+
+        let isNoSolutionMode = Math.random() < 0.2;
+        while (true) {
+          let tempNums = Array.from({ length: 4 }, () => Math.floor(Math.random() * 13) + 1);
+          if (canSolve(tempNums) === !isNoSolutionMode) { currentNums = tempNums; break; }
+        }
+
+        const iconList = (gameMode === 'survival') ? monsters : mentors;
+        document.getElementById('monster-icon').innerText = iconList[Math.floor(Math.random() * iconList.length)];
+      }
+      
+      const display = document.getElementById('number-display');
+      const keyContainer = document.getElementById('number-keys-container');
+      display.innerHTML = ''; keyContainer.innerHTML = '';
+      
+      currentNums.forEach(n => {
+        let card = document.createElement('div'); card.className = 'number-card'; card.innerText = n;
+        display.appendChild(card);
+        let key = document.createElement('button'); key.className = 'key'; key.innerText = n;
+        key.onclick = () => pressKey(n.toString()); keyContainer.appendChild(key);
+      });
+      updateTimerDisplay();
+    }
+
+    function checkAnswer() {
+      const feedback = document.getElementById('feedback');
+      let rawInput = document.getElementById('user-input').value.trim();
+      if (!rawInput) return;
+      let processed = rawInput.replace(/x|×|X/g, '*').replace(/÷/g, '/');
+      try {
+        let used = (processed.match(/\d+/g) || []).map(Number).sort((a, b) => a - b);
+        let goal = [...currentNums].sort((a, b) => a - b);
+        if (used.length === 0) throw new Error("Format Error");
+        if (JSON.stringify(used) !== JSON.stringify(goal)) {
+          feedback.style.color = "#f1c40f"; feedback.innerText = "❌ 四個數字各用一次"; return;
+        }
+        let result = new Function(`return ${processed}`)();
+        if (Math.abs(result - 24) < 1e-6) {
+          feedback.innerText = ""; handleSuccess(false);
+        } else {
+          handleWrongAnswer(`${result.toFixed(1)} ≠ 24`);
+        }
+      } catch (e) {
+        feedback.style.color = "#f1c40f"; feedback.innerText = "❓ 算式不完整";
+      }
+    }
+
+    function checkNoSolution() {
+      if (!canSolve(currentNums)) handleSuccess(true);
+      else handleWrongAnswer("這題其實是有解法的！");
+    }
+
+    function handleSuccess(isNoSolutionChallenge) {
+      if (gameMode === 'tutorial') { handleTutorialSuccess(); return; }
+      let addTime = 0;
+      if (gameMode === 'survival') {
+        addTime = (level <= 10) ? 20 : 15;
+        if (isNoSolutionChallenge) addTime += 10;
+        timeLeft = Math.min(timeLeft + addTime, MAX_TIME);
+        score += (100 * level);
+      } else { score++; }
+      level++;
+      document.getElementById('score').innerText = score;
+      document.getElementById('level').innerText = level;
+      updateTimerDisplay(); triggerEffect('shake');
+      
+      let successMsg = gameMode === 'survival' ? (isNoSolutionChallenge ? `看穿了！這題無解　+${addTime}s` : `擊中！　+${addTime}s`) : "解開了";
+      showResultModal(true, successMsg);
+    }
+
+    function handleWrongAnswer(msg) {
+      if (gameMode === 'tutorial') {
+        document.getElementById('feedback').style.color = "#e74c3c";
+        document.getElementById('feedback').innerText = `❌ ${msg}　再看看上方提示`;
+        triggerEffect('flash');
+        return;
+      }
+      if (gameMode === 'survival') {
+        wrongCount++;
+        if (wrongCount < 2) {
+          triggerEffect('shake');
+          document.getElementById('feedback').style.color = "#f1c40f";
+          document.getElementById('feedback').innerText = `❌ ${msg}　還有一次機會`;
+        } else {
+          timeLeft = Math.max(0, timeLeft - 10);
+          updateTimerDisplay(); triggerEffect('flash');
+          reduceHP(false, msg);
+        }
+      } else {
+        document.getElementById('feedback').style.color = "#e74c3c";
+        document.getElementById('feedback').innerText = `❌ ${msg}`;
+        triggerEffect('flash');
+      }
+    }
+
+    function handleTutorialSuccess() {
+      triggerEffect('shake');
+      const done = [
+        '很好！四個數字都用上了，這就是基本規則。',
+        '對了！乘法常常是最快湊出 24 的方法。',
+        '漂亮！括號讓你可以先算想先算的部分。',
+        '完全正確——看穿無解的題目，在冒險模式還會多加時間。'
+      ][tutorialStep];
+      tutorialStep++;
+      updateTutorialProgress();
+      if (tutorialStep >= TUTORIAL.length) showTutorialComplete();
+      else showResultModal(true, done);
+    }
+
+    function showTutorialComplete() {
+      isPaused = true;
+      document.getElementById('user-input').disabled = true;
+      document.getElementById('solution-modal').style.display = 'none';
+      const titleEl = document.getElementById('game-over-title');
+      titleEl.innerText = "🎓 教學完成";
+      titleEl.style.color = "#2ecc71";
+      document.getElementById('game-over-msg').innerHTML =
+        '四道題都完成了，規則你已經會了。<br><br>接下來可以到<strong>練習模式</strong>慢慢想，<br>或直接挑戰<strong>冒險模式</strong>。';
+      document.getElementById('new-record-effect').style.display = 'none';
+      document.getElementById('game-over-modal').style.display = 'block';
+    }
+
+    function reduceHP(isTimeOut, msg = "") {
+      hp--; document.getElementById('hp').innerText = hp;
+      if (hp <= 0 || (isTimeOut && timeLeft <= 0)) {
+        clearInterval(timerInterval);
+        processGameOver(); 
+      } else {
+        let failMsg = isTimeOut ? "⏰ 時間到　−1 HP" : `💥 ${msg}　−10s、−1 HP`;
+        showResultModal(false, failMsg);
+      }
+    }
+
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        if (isPaused) return;
+        if (gameMode === 'survival') {
+          timeLeft--; if (timeLeft <= 0) reduceHP(true);
+        } else { timeLeft++; }
+        updateTimerDisplay();
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const timerEl = document.getElementById('timer');
+      if (!timerEl) return;
+      timerEl.innerText = timeLeft;
+      if (gameMode === 'survival') {
+        if (timeLeft > 40) timerEl.style.color = "#2ecc71";
+        else if (timeLeft > 15) timerEl.style.color = "#f1c40f";
+        else timerEl.style.color = "#e74c3c";
+      } else { timerEl.style.color = "#3498db"; }
+    }
+
+    function showHint() {
+      const solutions = findAllSolutions(currentNums);
+      const feedback = document.getElementById('feedback');
+      if (solutions.length > 0) {
+        const hintMatch = solutions[0].match(/\(([^()]+)\)/);
+        const firstStep = hintMatch ? hintMatch[1] : solutions[0].substring(0, 5);
+        feedback.style.color = "#f39c12"; feedback.innerText = `💡 先算 (${firstStep}) 試試`;
+      } else {
+        feedback.style.color = "#f39c12"; feedback.innerText = "💡 這題確實無解";
+      }
+    }
+
+    function showResultModal(isSuccess, message) {
+      isPaused = true; document.getElementById('timer').classList.add('timer-paused');
+      const modal = document.getElementById('solution-modal');
+      const title = document.getElementById('modal-title');
+      const msgEl = document.getElementById('modal-msg');
+      const solSection = document.getElementById('solution-section');
+      
+      title.innerText = isSuccess ? "🎊 過關" : "💀 失手";
+      title.style.color = isSuccess ? "#2ecc71" : "#e74c3c";
+      msgEl.innerText = message; document.getElementById('user-input').disabled = true;
+      
+      if (isSuccess && gameMode === 'survival') { solSection.style.display = 'none'; } 
+      else {
+        solSection.style.display = 'block';
+        const solutions = findAllSolutions(currentNums);
+        document.getElementById('all-solutions-list').innerHTML = solutions.length > 0 ? solutions.map(s => `<div>${s}</div>`).join('') : "此題無解";
+      }
+      modal.style.display = 'block';
+    }
+
+    async function processGameOver() {
+        document.getElementById('user-input').disabled = true;
+        
+        const gameOverModal = document.getElementById('game-over-modal');
+        const titleEl = document.getElementById('game-over-title');
+        const msgEl = document.getElementById('game-over-msg');
+        const effectEl = document.getElementById('new-record-effect');
+        
+        titleEl.innerText = "💀 冒險結束";
+        titleEl.style.color = "#e74c3c";
+        msgEl.innerHTML = `勇者 <strong>${currentPlayerName}</strong> 倒在第 ${level} 關<br>得分 <strong>${score} 🪙</strong>`;
+        effectEl.style.display = 'none';
+        gameOverModal.style.display = 'block';
+
+        if (gameMode === 'survival' && score > 0) {
+            submitScore(currentPlayerName, level, score);
+
+            try {
+                const timestamp = new Date().getTime();
+                const response = await fetch(SCRIPT_URL + "?t=" + timestamp);
+                const data = await response.json();
+                
+                let isNewRecord = false;
+                if (data.length < 10) {
+                    isNewRecord = true; 
+                } else {
+                    const lowest = data[data.length - 1];
+                    if (level > lowest.level || (level === lowest.level && score > lowest.score)) {
+                        isNewRecord = true;
+                    }
+                }
+
+                if (isNewRecord) {
+                    titleEl.innerText = "🏆 英雄誕生！";
+                    titleEl.style.color = "#f1c40f";
+                    effectEl.style.display = 'block';
+                }
+
+                msgEl.innerHTML = `勇者 <strong>${currentPlayerName}</strong> 倒在第 ${level} 關<br>得分 <strong>${score} 🪙</strong><br><br>已送上英雄榜`;
+            } catch (error) {
+                msgEl.innerHTML = `勇者 <strong>${currentPlayerName}</strong> 倒在第 ${level} 關<br>得分 <strong>${score} 🪙</strong><br><br>已送上英雄榜`;
+            }
+        } else {
+             msgEl.innerHTML = `勇者 <strong>${currentPlayerName}</strong> 倒在第 ${level} 關<br>得分 <strong>${score} 🪙</strong>`;
+        }
+    }
+
+    function closeGameOverAndHome() {
+        document.getElementById('game-over-modal').style.display = 'none';
+        goHome(); 
+    }
+
+    function findAllSolutions(nums) {
+      let res = new Set();
+      const solve = (arr) => {
+        if (arr.length === 1) { if (Math.abs(arr[0].val - 24) < 1e-6) res.add(arr[0].str); return; }
+        for (let i = 0; i < arr.length; i++) {
+          for (let j = 0; j < arr.length; j++) {
+            if (i === j) continue;
+            let a = arr[i], b = arr[j], next = arr.filter((_, k) => k !== i && k !== j);
+            solve([...next, { val: a.val + b.val, str: `(${a.str}+${b.str})` }]);
+            solve([...next, { val: a.val - b.val, str: `(${a.str}-${b.str})` }]);
+            solve([...next, { val: a.val * b.val, str: `(${a.str}×${b.str})` }]);
+            if (b.val !== 0) solve([...next, { val: a.val / b.val, str: `(${a.str}÷${b.str})` }]);
+          }
+        }
+      };
+      solve(nums.map(n => ({ val: n, str: n.toString() })));
+      return Array.from(res).slice(0, 3);
+    }
+
+    function triggerEffect(name) {
+      const box = document.getElementById('monster-box');
+      if (box) { box.classList.add(name); setTimeout(() => box.classList.remove(name), 500); }
+    }
+
+    function canSolve(nums) {
+      if (nums.length === 1) return Math.abs(nums[0] - 24) < 1e-6;
+      for (let i = 0; i < nums.length; i++) {
+        for (let j = 0; j < nums.length; j++) {
+          if (i === j) continue;
+          let a = nums[i], b = nums[j], next = nums.filter((_, k) => k !== i && k !== j);
+          if (canSolve([...next, a + b]) || canSolve([...next, a - b]) || canSolve([...next, a * b]) || (b !== 0 && canSolve([...next, a / b]))) return true;
+        }
+      }
+      return false;
+    }
+
+    async function showLeaderboard() {
+        document.getElementById('leaderboard-modal').style.display = 'block';
+        const listEl = document.getElementById('leaderboard-list');
+        listEl.innerHTML = '讀取中 ⏳';
+
+        try {
+            const timestamp = new Date().getTime();
+            const response = await fetch(SCRIPT_URL + "?t=" + timestamp);
+            const data = await response.json();
+            
+            if (data.length === 0) {
+                listEl.innerHTML = '還沒有人留下紀錄';
+                return;
+            }
+
+            let html = '';
+            data.forEach((item, index) => {
+                let rankClass = index < 3 ? `rank-${index + 1}` : '';
+                let trophy = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+                
+                html += `<div class="leaderboard-item ${rankClass}">
+                            <span class="leaderboard-name">${trophy} ${item.name}</span>
+                            <div class="leaderboard-stats">
+                                <span style="color: #2ecc71;">🚩 關卡 ${item.level}</span>
+                                <span>🪙 ${item.score}</span>
+                            </div>
+                         </div>`;
+            });
+            listEl.innerHTML = html;
+        } catch (error) { 
+            listEl.innerHTML = '讀取失敗，請稍後再試'; 
+            console.error("讀取排行榜失敗原因:", error);
+        }
+    }
+
+    function closeLeaderboard() { 
+        document.getElementById('leaderboard-modal').style.display = 'none'; 
+    }
+
+    async function submitScore(playerName, finalLevel, finalScore) {
+        try {
+            fetch(SCRIPT_URL, { 
+                method: 'POST', 
+                mode: 'no-cors',
+                body: JSON.stringify({ playerName: playerName, level: finalLevel, score: finalScore }) 
+            });
+        } catch (error) { 
+            console.error("成績上傳失敗:", error); 
+        }
+    }
+  </script>
+</body>
+</html>
