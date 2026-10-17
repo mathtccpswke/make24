@@ -4,24 +4,72 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>數學冒險島：24 點大冒險</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@400..700&family=Baloo+2:wght@600..800&display=swap" rel="stylesheet">
   <style>
+    /* =========================================
+       0. 色彩與字型變數
+       ========================================= */
+    :root {
+      --bg:        #2c3e50;
+      --bg-glow:   #3a5165;
+      --panel:     #34495e;
+      --panel-2:   #3e566d;
+      --panel-dim: rgba(0, 0, 0, 0.3);
+      --edge:      #1a252f;
+      --gold:      #f1c40f;
+      --ink:       #ecf0f1;
+      --muted:     #bdc3c7;
+      --red:       #c0392b;
+      --red-light: #e05246;
+      --red-edge:  #8c2a1f;
+      --blue:      #2980b9;
+      --blue-light:#3f9ad8;
+      --blue-edge: #1b5c87;
+      --teal:      #16a085;
+      --teal-light:#1dc4a3;
+      --teal-edge: #0e6d5a;
+      --purple:    #8e44ad;
+      --purple-light:#a862c7;
+      --purple-edge:#5e2d74;
+      --grey:      #7f8c8d;
+      --grey-light:#98a4a5;
+      --grey-edge: #55605f;
+      --green:     #2ecc71;
+      --font-ui:  'Chiron GoRound TC', '微軟正黑體', 'PingFang TC', sans-serif;
+      --font-num: 'Baloo 2', 'Chiron GoRound TC', 'Consolas', monospace;
+    }
     /* =========================================
        1. 基本頁面設定
        ========================================= */
-    html { width: 100%; min-height: 100%; }
+    html { width: 100%; min-height: 100%; touch-action: manipulation; }
     body {
-      background-color: #2c3e50; color: #ecf0f1;
-      font-family: '微軟正黑體', 'PingFang TC', sans-serif;
-      display: block; 
-      margin: 0; padding: 15px 5px 25px; 
-      min-height: 100%; 
+      background-color: var(--bg);
+      background-image: radial-gradient(ellipse 130% 60% at 50% 0%, var(--bg-glow) 0%, var(--bg) 75%);
+      background-attachment: fixed;
+      color: var(--ink);
+      font-family: var(--font-ui);
+      display: block;
+      margin: 0; padding: 15px 5px 25px;
+      min-height: 100%;
       overflow-y: auto; overflow-x: hidden;
       box-sizing: border-box;
+      touch-action: manipulation;
+      -webkit-text-size-adjust: 100%;
+    }
+    /* 關閉雙擊縮放與長按選字，連按不掉鍵 */
+    button, .key, .number-card {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none; user-select: none;
     }
     .adventure-map {
-      width: 100%; max-width: 480px; background: #34495e;
-      border: 4px solid #f1c40f; border-radius: 15px; padding: 20px 15px;
-      text-align: center; box-shadow: 0 10px 0 #1a252f;
+      width: 100%; max-width: 480px;
+      background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 100%);
+      border: 4px solid var(--gold); border-radius: 15px; padding: 20px 15px;
+      text-align: center;
+      box-shadow: 0 10px 0 var(--edge), 0 14px 26px rgba(0, 0, 0, 0.3);
       margin: 0 auto 20px auto; 
       box-sizing: border-box;
     }
@@ -31,10 +79,17 @@
        ========================================= */
     header {
       display: flex; justify-content: space-around; align-items: center;
-      font-size: 1rem; margin-bottom: 15px; background: rgba(0, 0, 0, 0.3);
-      padding: 12px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 1rem; margin-bottom: 15px; background: var(--panel-dim);
+      padding: 10px 12px; border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35);
     }
-    .stat { font-weight: bold; display: flex; align-items: center; white-space: nowrap; }
+    .stat {
+      font-weight: bold; display: flex; align-items: center;
+      white-space: nowrap; gap: 4px; color: var(--muted);
+    }
+    .stat span { color: var(--ink); font-family: var(--font-num); font-size: 1.15em; }
+    #hp { letter-spacing: 1px; font-size: 1rem; }
     .battle-container {
       display: flex; flex-direction: row; justify-content: center;
       align-items: center; gap: 10px; margin: 20px 0; width: 100%;
@@ -46,12 +101,24 @@
     }
     #timer-label { font-size: 0.75rem; color: #bdc3c7; margin-bottom: 5px; font-weight: bold; }
     #timer {
-      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-family: var(--font-num);
       font-size: 1.8rem; font-weight: bold; min-width: 3.5rem; text-align: center;
       font-variant-numeric: tabular-nums; transition: color 0.3s ease, opacity 0.3s ease;
     }
     .timer-paused { color: #95a5a6 !important; opacity: 0.5; }
     .monster-area { flex: 1.5; height: 100px; display: flex; justify-content: center; align-items: center; }
+
+    /* ===== 打擊特效：被打中往後仰一下並泛白 ===== */
+    .monster-sprite.hit { animation: monster-hit 0.26s ease-out; }
+    @keyframes monster-hit {
+      0%   { transform: translateX(0) scale(1); filter: none; }
+      30%  { transform: translateX(14px) scale(0.86); filter: brightness(3) saturate(0); }
+      100% { transform: translateX(0) scale(1); filter: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .monster-sprite { animation: none !important; }
+      .monster-sprite.hit { animation-duration: 0.01s !important; }
+    }
     .monster-sprite { font-size: 60px; animation: bounce 2s infinite; line-height: 1; }
     .side-placeholder { flex: 1; visibility: hidden; }
 
@@ -61,7 +128,8 @@
     .card-container { display: flex; justify-content: center; gap: 10px; margin: 15px 0; }
     .number-card {
       background: #ecf0f1; color: #2c3e50; width: 55px; height: 80px;
-      line-height: 80px; font-size: 2rem; font-weight: bold; border-radius: 10px;
+      line-height: 80px; font-size: 2rem; font-weight: 800; border-radius: 10px;
+      font-family: var(--font-num);
       border-bottom: 5px solid #bdc3c7; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
     }
     input[type="text"] {
@@ -78,19 +146,54 @@
     .keyboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 15px auto; width: 100%; }
     .keyboard button { height: 58px; font-size: 1.6rem; }
     button, .key, .btn-modal-next {
-      font-family: inherit; font-weight: bold; border: none; border-radius: 12px;
-      cursor: pointer; transition: all 0.1s ease; display: inline-flex;
-      align-items: center; justify-content: center; box-shadow: 0 5px 0 rgba(0, 0, 0, 0.3);
-      position: relative; top: 0;
+      font-family: var(--font-ui); font-weight: 700; border: none; border-radius: 14px;
+      cursor: pointer; display: inline-flex;
+      align-items: center; justify-content: center;
+      box-shadow: 0 6px 0 var(--edge);
+      transition: transform 0.06s ease, box-shadow 0.06s ease, filter 0.15s ease;
+      transform: translateY(0);
     }
-    button:active, .key:active { top: 3px; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3) !important; }
-    .key { background: #ecf0f1; color: #2c3e50; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; }
-    .key-op { background: #2980b9; color: white; font-size: 1.15em; line-height: 1; }
-    .key-del { background: #95a5a6; color: white; }
+    button:active, .key:active {
+      transform: translateY(5px);
+      box-shadow: 0 1px 0 var(--edge) !important;
+    }
+    .key {
+      background: linear-gradient(180deg, #ffffff 0%, #dde3e5 100%);
+      color: #2c3e50; font-family: var(--font-num);
+      box-shadow: 0 6px 0 #9aa6aa;
+    }
+    .key:active { box-shadow: 0 1px 0 #9aa6aa !important; }
+    .key-op {
+      background: linear-gradient(180deg, var(--blue-light) 0%, var(--blue) 100%);
+      color: white; font-size: 1.2em; line-height: 1;
+      box-shadow: 0 6px 0 var(--blue-edge);
+    }
+    .key-op:active { box-shadow: 0 1px 0 var(--blue-edge) !important; }
+    .key-del {
+      background: linear-gradient(180deg, var(--grey-light) 0%, var(--grey) 100%);
+      color: white; box-shadow: 0 6px 0 var(--grey-edge);
+    }
+    .key-del:active { box-shadow: 0 1px 0 var(--grey-edge) !important; }
     .button-group { display: flex; justify-content: center; gap: 12px; }
     .button-group button { height: 70px; font-size: 1.6rem; flex: 1; max-width: 180px; letter-spacing: 2px; }
-    .btn-attack { background: #e74c3c; color: white; }
-    .btn-no-solution { background: #9b59b6; color: white; }
+    .btn-attack {
+      background: linear-gradient(180deg, var(--red-light) 0%, var(--red) 100%);
+      color: white; box-shadow: 0 6px 0 var(--red-edge);
+    }
+    .btn-attack:active { box-shadow: 0 1px 0 var(--red-edge) !important; }
+    .btn-no-solution {
+      background: linear-gradient(180deg, var(--purple-light) 0%, var(--purple) 100%);
+      color: white; box-shadow: 0 6px 0 var(--purple-edge);
+    }
+    .btn-no-solution:active { box-shadow: 0 1px 0 var(--purple-edge) !important; }
+    #btn-home {
+      display: block; margin: 0 0 10px 0;
+      padding: 7px 14px;
+      background: linear-gradient(180deg, var(--grey-light) 0%, var(--grey) 100%);
+      box-shadow: 0 4px 0 var(--grey-edge); color: white;
+      border: none; border-radius: 8px; cursor: pointer;
+      font-size: 0.85rem; font-weight: bold;
+    }
     .btn-mode {
       display: block; width: 100%; text-align: left;
       padding: 18px 20px; margin: 0 0 14px 0;
@@ -101,10 +204,35 @@
     .btn-mode:active { transform: translateY(3px) !important; }
     .btn-mode h2 { margin: 0; font-size: 1.45rem; line-height: 1.25; }
     .btn-mode p { margin: 6px 0 0 0; opacity: 0.85; font-size: 0.95rem; line-height: 1.35; }
-    .btn-mode.survival { background: #c0392b; }
-    .btn-mode.practice { background: #2980b9; }
-    .btn-mode.tutorial { background: #16a085; }
-    .leaderboard-btn { background: #8e44ad; text-align: center; font-size: 1.2rem; padding: 16px; margin-bottom: 0; }
+    /* 冒險模式＝主線，刻意做得更重 */
+    .btn-mode.survival {
+      background: linear-gradient(180deg, var(--red-light) 0%, var(--red) 100%);
+      box-shadow: 0 7px 0 var(--red-edge);
+      padding: 22px 22px;
+    }
+    .btn-mode.survival:active { box-shadow: 0 1px 0 var(--red-edge) !important; }
+    .btn-mode.survival h2 { font-size: 1.6rem; }
+
+    .btn-mode.practice {
+      background: linear-gradient(180deg, var(--blue-light) 0%, var(--blue) 100%);
+      box-shadow: 0 6px 0 var(--blue-edge);
+    }
+    .btn-mode.practice:active { box-shadow: 0 1px 0 var(--blue-edge) !important; }
+
+    .btn-mode.tutorial {
+      background: linear-gradient(180deg, var(--teal-light) 0%, var(--teal) 100%);
+      box-shadow: 0 6px 0 var(--teal-edge);
+    }
+    .btn-mode.tutorial:active { box-shadow: 0 1px 0 var(--teal-edge) !important; }
+
+    /* 英雄榜＝次要，做成細框按鈕讓位給三個模式 */
+    .leaderboard-btn {
+      background: linear-gradient(180deg, var(--purple-light) 0%, var(--purple) 100%);
+      color: white; text-align: center;
+      font-size: 1.15rem; padding: 15px; margin-bottom: 0;
+      box-shadow: 0 6px 0 var(--purple-edge);
+    }
+    .leaderboard-btn:active { box-shadow: 0 1px 0 var(--purple-edge) !important; }
 
     /* =========================================
        4. 彈出視窗與特效
@@ -247,23 +375,23 @@
   </div>
 
   <div id="game-container" class="adventure-map" style="display: none; position: relative;">
-    <button id="btn-home" onclick="goHome()" style="position: absolute; top: -10px; left: 10px; padding: 5px 12px; background: #7f8c8d; color: white; border-radius: 8px; border: none; cursor: pointer; font-size: 0.8rem; z-index: 10;">🏠 回選單</button>
+    <button id="btn-home" onclick="goHome()">🏠 回選單</button>
     
     <header>
-      <div class="stat" id="hp-stat">❤️ HP: <span id="hp">3</span></div>
+      <div class="stat" id="hp-stat"><span id="hp">❤️❤️❤️</span></div>
       <div class="stat" id="score-label">🪙 分數: <span id="score">0</span></div>
       <div class="stat" id="level-stat">🚩 關卡: <span id="level">1</span></div>
     </header>
     
     <div class="battle-container">
-      <div class="side-timer-box">
+      <div class="side-timer-box" id="timer-box">
         <div id="timer-label">⏳ 時間</div>
         <div id="timer">75</div>
       </div>
       <div class="monster-area" id="monster-box">
         <div id="monster-icon" class="monster-sprite">👾</div>
       </div>
-      <div class="side-placeholder"></div>
+      <div class="side-placeholder" id="placeholder-box"></div>
     </div>
     
     <div id="number-display" class="card-container"></div>
@@ -346,13 +474,9 @@
     // =========================================
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyiNSro9bQ5AEXdsSxbprH-0ZDzILgwgsW-I6B0ZuukF3feO6eQtFFoOCh3QsKnU6UA/exec';
 
+    // 防雙指縮放（雙擊縮放已由 CSS touch-action: manipulation 關閉，不攔截 click）
     document.addEventListener('touchstart', function(event) { if (event.touches.length > 1) event.preventDefault(); }, { passive: false });
-    let lastTouchEnd = 0;
-    document.addEventListener('touchend', function(event) {
-      const now = (new Date()).getTime();
-      if (now - lastTouchEnd <= 300) event.preventDefault();
-      lastTouchEnd = now;
-    }, false);
+    document.addEventListener('gesturestart', function(event) { event.preventDefault(); });
     document.addEventListener('keydown', function(event) {
       if ((event.ctrlKey || event.metaKey) && (event.key === '+' || event.key === '-' || event.key === '=' || event.key === '0')) event.preventDefault();
     });
@@ -369,7 +493,17 @@
     let isPaused = false;
     let wrongCount = 0; 
     const MAX_TIME = 120;
-    const monsters = ['👾', '👹', '🐲', '🌵', '👻', '🐙', '🧟', '🐺', '🐝', '👽', '🧛'];
+    // 敵人按關卡分層，越後面越兇
+    const ENEMY_TIERS = [
+      { max: 5,        list: ['🐀', '🦇', '🐍', '🦂'] },   // 小嘍囉
+      { max: 12,       list: ['👻', '🎃', '🧟', '👺'] },   // 妖怪
+      { max: 20,       list: ['👾', '👹', '🧛', '🦑'] },   // 強敵
+      { max: Infinity, list: ['🐉', '🐲', '🦖', '👿'] }    // 魔王
+    ];
+    function pickEnemy(lv) {
+      const tier = ENEMY_TIERS.find(t => lv <= t.max) || ENEMY_TIERS[ENEMY_TIERS.length - 1];
+      return tier.list[Math.floor(Math.random() * tier.list.length)];
+    }
     const mentors = ['🧙‍♂️', '🤖', '🎓', '🦉', '💡'];
 
     // ===== 新手教學：四道固定題目 =====
@@ -384,6 +518,11 @@
       { nums: [1, 1, 1, 1],
         tip: '④ 有些題目真的湊不出 24。這時候按「此題無解」才是正確答案。' }
     ];
+
+    function renderHP() {
+      const el = document.getElementById('hp');
+      if (el) el.innerText = '❤️'.repeat(Math.max(0, hp)) + '🤍'.repeat(Math.max(0, 3 - hp));
+    }
 
     function updateTutorialProgress() {
       const el = document.getElementById('score');
@@ -439,9 +578,13 @@
       document.getElementById('start-menu').style.display = 'none';
       document.getElementById('game-container').style.display = 'block';
       document.getElementById('level').innerText = level;
-      document.getElementById('hp').innerText = hp;
+      renderHP();
       document.getElementById('score').innerText = score;
       
+      // 教學模式不計時，隱藏計時框（空字串 = 交還給 CSS，不會蓋掉手機版規則）
+      document.getElementById('timer-box').style.display = (gameMode === 'tutorial') ? 'none' : '';
+      document.getElementById('placeholder-box').style.display = (gameMode === 'tutorial') ? 'none' : '';
+
       if (gameMode === 'survival') {
         timeLeft = 75;
         document.getElementById('hp-stat').style.display = 'block';
@@ -505,8 +648,8 @@
           if (canSolve(tempNums) === !isNoSolutionMode) { currentNums = tempNums; break; }
         }
 
-        const iconList = (gameMode === 'survival') ? monsters : mentors;
-        document.getElementById('monster-icon').innerText = iconList[Math.floor(Math.random() * iconList.length)];
+        document.getElementById('monster-icon').innerText =
+          (gameMode === 'survival') ? pickEnemy(level) : mentors[Math.floor(Math.random() * mentors.length)];
       }
       
       const display = document.getElementById('number-display');
@@ -565,7 +708,10 @@
       updateTimerDisplay(); triggerEffect('shake');
       
       let successMsg = gameMode === 'survival' ? (isNoSolutionChallenge ? `看穿了！這題無解　+${addTime}s` : `擊中！　+${addTime}s`) : "解開了";
-      showResultModal(true, successMsg);
+      // 先停錶並播一下打擊，視窗稍後再開，讓玩家看得到這一擊
+      isPaused = true;
+      playAttack();
+      setTimeout(() => showResultModal(true, successMsg), prefersReducedMotion() ? 0 : HIT_DELAY);
     }
 
     function handleWrongAnswer(msg) {
@@ -603,8 +749,11 @@
       ][tutorialStep];
       tutorialStep++;
       updateTutorialProgress();
-      if (tutorialStep >= TUTORIAL.length) showTutorialComplete();
-      else showResultModal(true, done);
+      isPaused = true;
+      playAttack();
+      const wait = prefersReducedMotion() ? 0 : HIT_DELAY;
+      if (tutorialStep >= TUTORIAL.length) setTimeout(showTutorialComplete, wait);
+      else setTimeout(() => showResultModal(true, done), wait);
     }
 
     function showTutorialComplete() {
@@ -621,7 +770,7 @@
     }
 
     function reduceHP(isTimeOut, msg = "") {
-      hp--; document.getElementById('hp').innerText = hp;
+      hp--; renderHP();
       if (hp <= 0 || (isTimeOut && timeLeft <= 0)) {
         clearInterval(timerInterval);
         processGameOver(); 
@@ -753,6 +902,20 @@
       };
       solve(nums.map(n => ({ val: n, str: n.toString() })));
       return Array.from(res).slice(0, 3);
+    }
+
+    // 打擊特效的停頓；想更快或更慢只改這個數字
+    const HIT_DELAY = 200;
+    function prefersReducedMotion() {
+      return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
+    function playAttack() {
+      const sprite = document.getElementById('monster-icon');
+      if (!sprite) return;
+      sprite.classList.remove('hit');
+      void sprite.offsetWidth;        // 強制重排，讓同一個動畫能連續重播
+      sprite.classList.add('hit');
+      setTimeout(() => sprite.classList.remove('hit'), 400);
     }
 
     function triggerEffect(name) {
